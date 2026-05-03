@@ -68,7 +68,17 @@ That's awful. Real brainfuck programs don't do this — they use loops.
 
 **Test program 2 — print 'H' with a loop**
 
-The idea: put 8 in cell 0, put 9 in cell 1, then loop: add 9 to cell 1 while decrementing cell 0. When cell 0 hits zero, cell 1 holds 8 × 9 = 72 = 'H'.
+Instead of writing 72 `INC` instructions, we can multiply `8 × 9`.
+
+Use cell 0 as the loop counter and cell 1 as the result:
+
+1. Set cell 0 to `8`.
+2. While cell 0 is not zero:
+   - move to cell 1 and add `9`,
+   - move back to cell 0 and subtract `1`.
+3. Move to cell 1 and print it.
+
+When the loop finishes, cell 1 holds `8 × 9 = 72`, which is ASCII `'H'`.
 
 Trace it on paper:
 
@@ -78,36 +88,28 @@ Start:     tape: [0] [0]     dp=0
 Set up cell 0 = 8:
 INC x8     tape: [8] [0]     dp=0
 
-Move to cell 1:
-RIGHT      tape: [8] [0]     dp=1
-
-Set up cell 1 = 9:
-INC x9     tape: [8] [9]     dp=1
-
-Now the loop. Go back to cell 0:
-LEFT       tape: [8] [9]     dp=0
-
---- loop start (pc = 18) ---
-JUMP_IF_ZERO to pc 28 (exit)
+--- loop start (pc = 8) ---
+JUMP_IF_ZERO to pc 24 (exit)
     tape[0] is 8, not zero, so keep going.
-DEC        tape: [7] [9]     dp=0
-RIGHT      tape: [7] [9]     dp=1
-INC x9     tape: [7] [18]    dp=1     <- added 9 to cell 1
-LEFT       tape: [7] [18]    dp=0     <- back to counter
-JUMP_IF_NOT_ZERO to pc 18 (loop start)
+RIGHT      tape: [8] [0]     dp=1
+INC x9     tape: [8] [9]     dp=1     <- added 9 to cell 1
+LEFT       tape: [8] [9]     dp=0     <- back to counter
+DEC        tape: [7] [9]     dp=0     <- counter -= 1
+JUMP_IF_NOT_ZERO to pc 8 (loop start)
     tape[0] is 7, not zero, so jump back.
 --- loop continues until cell 0 is 0 ---
 
 After 8 iterations:
            tape: [0] [72]    dp=0
 
-JUMP_IF_ZERO fires, skips to pc 28.
+JUMP_IF_NOT_ZERO sees that tape[0] is 0, so it does not jump.
+Execution continues at pc 24.
 RIGHT      dp=1
 PRINT      prints tape[1] = 72 = 'H'
 HALT
 ```
 
-Write this as a bytecode array. The hardest part is getting the `pc` values right for the two jumps. Count every byte carefully — `INC` is 1 byte, but `JUMP_IF_ZERO` is 2 bytes (opcode + target).
+Write this as a bytecode array. The hardest part is getting the `pc` values right for the two jumps. Count every byte carefully — most instructions are 1 byte, but each jump is 2 bytes: opcode + target.
 
 **Hint**
 
@@ -115,21 +117,20 @@ Write this as a bytecode array. The hardest part is getting the `pc` values righ
 uint8_t program[] = {
 //  pc
     1,1,1,1,1,1,1,1,          //  0-7:   INC x8 (cell 0 = 8)
-    3,                         //  8:     RIGHT
-    1,1,1,1,1,1,1,1,1,        //  9-17:  INC x9 (cell 1 = 9)
-    4,                         // 18:     LEFT
-    // -- loop start at pc 19 --
-    7, ???,                    // 19:     JUMP_IF_ZERO ???  (exit loop)
-    2,                         // 21:     DEC
-    3,                         // 22:     RIGHT
-    1,1,1,1,1,1,1,1,1,        // 23-31:  INC x9 (add 9 to cell 1)
-    4,                         // 32:     LEFT
-    8, ???,                    // 33:     JUMP_IF_NOT_ZERO ??? (loop back)
+    // -- loop start at pc 8 --
+    7, ???,                    //  8:     JUMP_IF_ZERO ???  (exit loop)
+    3,                         // 10:     RIGHT
+    1,1,1,1,1,1,1,1,1,        // 11-19:  INC x9 (add 9 to cell 1)
+    4,                         // 20:     LEFT
+    2,                         // 21:     DEC (counter -= 1)
+    8, ???,                    // 22:     JUMP_IF_NOT_ZERO ??? (loop back)
     // -- loop end --
-    3,                         // 35:     RIGHT
-    5,                         // 36:     PRINT
-    0                          // 37:     HALT
+    3,                         // 24:     RIGHT
+    5,                         // 25:     PRINT
+    0                          // 26:     HALT
 };
 ```
 
 Fill in the two `???`. One points forward to after the loop, one points backward to the top of the loop.
+
+If you accidentally initialize cell 1 to `9` before the loop and then add `9` eight more times, you will get `81`, which prints `'Q'`, not `'H'`.

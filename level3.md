@@ -17,7 +17,7 @@ Normally your `pc` moves forward. `JUMP` says "go to this position in the progra
 
 **What `JUMP_IF_ZERO` does**
 
-It's an `if` statement. It pops a value and asks: was that zero? If yes, jump. If no, keep going. This is how you make decisions and exit loops.
+It's an `if` statement. It **peeks** at the top value and asks: was that zero? If yes, jump. If no, keep going. It does not remove the value from the stack — the loop counter still needs to be there after the test. This is how you make decisions and exit loops.
 
 **Test program 1 — infinite loop (prints AAAA... forever)**
 
